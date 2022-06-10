@@ -40,8 +40,6 @@
     <Object Factor="1">
       <Content>
 	  <Spawn X="0" Y="0" Name="PlayerSpawn" Animation="JumpOff|18"/>
-	  <Spawn X="0" Y="0" Name="DefaultSpawn" Animation="JumpOff|18"/>
-	  <Camera X="0" Y="0"/>
 	  
       </Content>
     </Object>

@@ -1,4 +1,4 @@
-using System;
+using System.Linq;
 using System.Xml;
 using UnityEngine;
 using UnityEditor;
@@ -6,9 +6,7 @@ using UnityEditor;
 public class ConvertXmlObject : MonoBehaviour
 {
     public string objectToConvert;
-    int length;
-    float zRot;
-    bool StopCounting;
+    public bool debugObjectFound;
     GameObject lastContent;
     GameObject actualObject;
     GameObject dummyObject;
@@ -26,32 +24,22 @@ public class ConvertXmlObject : MonoBehaviour
         foreach (XmlNode node in xml.DocumentElement.SelectSingleNode("/Root/Objects"))
         {
             //Check if the object as the correct name
-            if (node.OuterXml.Contains('"' + GameObject.FindObjectOfType<ConvertXmlObject>().objectToConvert + '"'))
-            {
-                //Search for each node in the object 
-                foreach (XmlNode content in node.FirstChild)
+            if (node.Name == "Object")
+                if (node.Attributes.GetNamedItem("Name").Value == GameObject.FindObjectOfType<ConvertXmlObject>().objectToConvert)
                 {
-                    //Check if it is an image node
-                    if (content.Name == "Image")
+                    //Search for each node in the object 
+                    foreach (XmlNode content in node.FirstChild)
                     {
-                        Debug.Log("Found Image : " + content.Attributes.GetNamedItem("ClassName").Value);
-                        // vv  Only way to call an external function in an static function  vv
-                        GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
-                    }
-                    //Check if it is an trigger node
-                    else if (content.Name == "Trigger")
-                    {
-                        Debug.Log("Found Trigger : " + content.Attributes.GetNamedItem("Name").Value);
-                        GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
-                    }
-                    //Check if it is an area (trick) node
-                    else if (content.Name == "Area")
-                    {
-                        Debug.Log("Found Trick : " + content.Attributes.GetNamedItem("Name").Value);
-                        GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                        if (content.Name == "Image")
+                            GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                        else if (content.Name == "Trigger")
+                            GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                        else if (content.Name == "Area")
+                            GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                        else if (content.Name == "Object")
+                            GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
                     }
                 }
-            }
         }
         GameObject.FindObjectOfType<ConvertXmlObject>().actualObject = null;
         Debug.Log("Convert done !");
@@ -59,6 +47,16 @@ public class ConvertXmlObject : MonoBehaviour
 
     void InstantiateObject(XmlNode content)
     {
+        //Debug all content found in the object
+        if (debugObjectFound && content.Name == "Image")
+            Debug.Log("Found Image : " + content.Attributes.GetNamedItem("ClassName").Value);
+        else if (debugObjectFound && content.Name == "Trigger")
+            Debug.Log("Found Trigger : " + content.Attributes.GetNamedItem("Name").Value);
+        else if (debugObjectFound && content.Name == "Area")
+            Debug.Log("Found Trick : " + content.Attributes.GetNamedItem("Name").Value);
+        else if (debugObjectFound && content.Name == "Object")
+            Debug.Log("Found Object : " + content.Attributes.GetNamedItem("Name").Value);
+
         //Place the image using every information the xml provide (X, Y, Width, Height, ClassName)
         if (actualObject == null)
         {
@@ -85,6 +83,7 @@ public class ConvertXmlObject : MonoBehaviour
                 {
                     if (matrixNode.Name == "Matrix")
                     {
+                        //TODO : You can take a look at a more stable way to convert the right rotation
                         //Set the image rotation to the A value divided by 1.665 (very wonky but kinda work for now)
                         lastContent.transform.rotation = Quaternion.Euler(0, 0, int.Parse(matrixNode.Attributes.GetNamedItem("A").Value) / 1.665f * 2);
                         //Recenter the image correctly
@@ -108,19 +107,24 @@ public class ConvertXmlObject : MonoBehaviour
         }
 
         // vv  If the content is a Trick  vv
-        else if (content.Name == "Area")
+        else if (content.Name == "Area" || content.Name == "Object" && content.OuterXml.Contains("Trigger"))
         {
             lastContent = Instantiate(
             dummyObject = new GameObject(content.Attributes.GetNamedItem("Name").Value), //Usage of Name value (To name the new object)
             new Vector3(float.Parse(content.Attributes.GetNamedItem("X").Value) / 100, -float.Parse(content.Attributes.GetNamedItem("Y").Value) / 100, 0), //Usage of X and Y value (divided by 100 to fit Unity scale)
             Quaternion.identity);
-
-            lastContent.AddComponent<SpriteRenderer>().sprite = Resources.Load<Sprite>("Textures/trick"); //REUsage of ClassName value (To place the texture)
+            if (content.Attributes.GetNamedItem("Name").Value.Contains("Trigger") && Resources.Load<Sprite>("Textures/tricks/TRACK_" + content.Attributes.GetNamedItem("ItemName").Value))
+                lastContent.AddComponent<SpriteRenderer>().sprite = Resources.Load<Sprite>("Textures/tricks/TRACK_" + content.Attributes.GetNamedItem("ItemName").Value); //REUsage of ClassName value (To place the texture)
+            else
+                lastContent.AddComponent<SpriteRenderer>().sprite = Resources.Load<Sprite>("Textures/trick"); //REUsage of ClassName value (To place the texture)
         }
 
         // vv  Universal action  vv
         lastContent.GetComponent<SpriteRenderer>().transform.parent = actualObject.transform; //Place the new image into the selected object
-        lastContent.transform.localScale = new Vector3(float.Parse(content.Attributes.GetNamedItem("Width").Value) / lastContent.GetComponent<SpriteRenderer>().sprite.texture.width, float.Parse(content.Attributes.GetNamedItem("Height").Value) / lastContent.GetComponent<SpriteRenderer>().sprite.texture.height, 0); //Usage of Width and Height value
+        if (lastContent.GetComponent<SpriteRenderer>().sprite.name.Contains("TRICK"))
+            lastContent.transform.localScale = new Vector3(1, 1, 0);
+        else if (content.Name != "Object")
+            lastContent.transform.localScale = new Vector3(float.Parse(content.Attributes.GetNamedItem("Width").Value) / lastContent.GetComponent<SpriteRenderer>().sprite.texture.width, float.Parse(content.Attributes.GetNamedItem("Height").Value) / lastContent.GetComponent<SpriteRenderer>().sprite.texture.height, 0); //Usage of Width and Height value
         actualObject.tag = "Object"; //VERY IMPORTANT : Every GameObject with the tag "Object" will be counted in the final build, else ignored.
         DestroyImmediate(dummyObject); //Remove duplicated content
     }
