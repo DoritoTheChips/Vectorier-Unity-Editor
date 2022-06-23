@@ -3,16 +3,41 @@ using System.Xml;
 using UnityEngine;
 using UnityEditor;
 
-public class ConvertXmlObject : MonoBehaviour
+public class ShowMap : MonoBehaviour
 {
-    public string objectToConvert;
-    public bool debugObjectFound;
+    public string map;
+    public string sequence;
     GameObject lastContent;
     GameObject actualObject;
     GameObject dummyObject;
 
-    [MenuItem("Vectorier/Convert from objects.xml")]
-    public static void ConvertXmlToObject()
+    [MenuItem("Vectorier/Render object sequence")]
+
+    public static void RenderSequence()
+    {
+        int layer = -1;
+        Debug.Log("Rendering...");
+        XmlDocument mapName = new XmlDocument();
+        mapName.Load(Application.dataPath + "/XML/" + GameObject.FindObjectOfType<ShowMap>().map);
+        foreach (XmlNode node in mapName.DocumentElement.SelectSingleNode("/Root/Objects"))
+            {
+                //Check if the object has the correct name
+                if (node.Name == "Object") 
+                    if (node.Attributes.GetNamedItem("Name").Value == GameObject.FindObjectOfType<ShowMap>().sequence)
+                    {
+                        //Search for each node in the object 
+                        foreach (XmlNode content in node.FirstChild)
+                            if (content.Name == "Object") {
+                                layer+=1;
+                                Debug.Log("Found object with name " + content.Attributes.GetNamedItem("Name").Value + "and coordinates" + content.Attributes.GetNamedItem("X").Value + content.Attributes.GetNamedItem("Y").Value);
+                                ConvertXmlToObject(content.Attributes.GetNamedItem("Name").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
+                            }
+                    }
+
+            }
+    }
+
+    static void ConvertXmlToObject(string object_name, string x,  string y, int layer)
     {
         Debug.Log("Converting...");
 
@@ -33,50 +58,49 @@ public class ConvertXmlObject : MonoBehaviour
                 obj.Load(Application.dataPath + "/XML/objects_construction.xml");
             foreach (XmlNode node in obj.DocumentElement.SelectSingleNode("/Root/Objects"))
             {
-                //Check if the object as the correct name
+                //Check if the object has the correct name
                 if (node.Name == "Object")
-                    if (node.Attributes.GetNamedItem("Name").Value == GameObject.FindObjectOfType<ConvertXmlObject>().objectToConvert)
+                    if (node.Attributes.GetNamedItem("Name").Value == object_name)
                     {
                         objectFound = true;
                         //Search for each node in the object 
                         foreach (XmlNode content in node.FirstChild)
                         {
                             if (content.Name == "Image")
-                                GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
                             else if (content.Name == "Trigger")
-                                GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
                             else if (content.Name == "Area")
-                                GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
                             else if (content.Name == "Object")
-                                GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
                         }
                     }
             }
             doc_num += 1;
         }
-        GameObject.FindObjectOfType<ConvertXmlObject>().actualObject = null;
+        GameObject.FindObjectOfType<ShowMap>().actualObject = null;
         Debug.Log("Convert done !");
     }
 
-    void InstantiateObject(XmlNode content)
+    void InstantiateObject(XmlNode content, string object_name, string x, string y, int layer)
     {
         //Debug all content found in the object
-        if (debugObjectFound && content.Name == "Image")
+        if (content.Name == "Image")
             Debug.Log("Found Image : " + content.Attributes.GetNamedItem("ClassName").Value);
-        else if (debugObjectFound && content.Name == "Trigger")
+        else if (content.Name == "Trigger")
             Debug.Log("Found Trigger : " + content.Attributes.GetNamedItem("Name").Value);
-        else if (debugObjectFound && content.Name == "Area")
+        else if (content.Name == "Area")
             Debug.Log("Found Trick : " + content.Attributes.GetNamedItem("Name").Value);
-        else if (debugObjectFound && content.Name == "Object")
+        else if (content.Name == "Object")
             Debug.Log("Found Object : " + content.Attributes.GetNamedItem("Name").Value);
 
         //Place the image using every information the xml provide (X, Y, Width, Height, ClassName)
         if (actualObject == null)
         {
             //Create a new GameObject with the selected object
-            actualObject = Instantiate(new GameObject(GameObject.FindObjectOfType<ConvertXmlObject>().objectToConvert), new Vector3(0, 0, 0), Quaternion.identity);
-            DestroyImmediate(GameObject.Find(GameObject.FindObjectOfType<ConvertXmlObject>().objectToConvert)); //Destroy duplicate
-            actualObject.name = GameObject.FindObjectOfType<ConvertXmlObject>().objectToConvert; //Name it correctly
+            actualObject = Instantiate(new GameObject(object_name), new Vector3(-float.Parse(x) / 100, float.Parse(y) / 100, 0), Quaternion.identity);
+            actualObject.name = object_name; //Name it correctly
         }
 
         // vv  If the content is an image  vv
@@ -139,6 +163,7 @@ public class ConvertXmlObject : MonoBehaviour
         else if (content.Name != "Object")
             lastContent.transform.localScale = new Vector3(float.Parse(content.Attributes.GetNamedItem("Width").Value) / lastContent.GetComponent<SpriteRenderer>().sprite.texture.width, float.Parse(content.Attributes.GetNamedItem("Height").Value) / lastContent.GetComponent<SpriteRenderer>().sprite.texture.height, 0); //Usage of Width and Height value
         actualObject.tag = "Object"; //VERY IMPORTANT : Every GameObject with the tag "Object" will be counted in the final build, else ignored.
+        lastContent.GetComponent<SpriteRenderer>().sortingOrder = layer;
         DestroyImmediate(dummyObject); //Remove duplicated content
     }
 }
