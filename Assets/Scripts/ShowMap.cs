@@ -166,10 +166,7 @@ public class ShowMap : MonoBehaviour
                     {
                         if (matrixNode.Name == "Matrix" && matrixNode.Attributes.GetNamedItem("A").Value != content.Attributes.GetNamedItem("Width").Value)
                         {
-                            //TODO : You can take a look at a more stable way to convert the right rotation
-                            //Set the image rotation to the A value divided by 1.665 (very wonky but kinda work for now)
                             lastContent.transform.rotation = Quaternion.Euler(0, float.Parse(content.Attributes.GetNamedItem("Width").Value) / float.Parse(matrixNode.Attributes.GetNamedItem("A").Value, CultureInfo.InvariantCulture) * 180f, 0);
-                            //Recenter the image correctly
                         }
                     }
             }
