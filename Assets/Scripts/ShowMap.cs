@@ -2,81 +2,180 @@ using System.Linq;
 using System.Xml;
 using System;
 using System.Globalization;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
 public class ShowMap : MonoBehaviour
 {
-    public string map;
-    public string sequence;
+    public string level_name;
+    int layer;
     GameObject actualObject;
     GameObject lastContent;
-    GameObject box;
+    GameObject lv;
+    GameObject part;
 
     [MenuItem("Vectorier/Render object sequence")]
 
-    public static void RenderSequence()
+    public static void RenderMap()
     {
-        int layer = 0;
-        Debug.Log("Rendering...");
-        XmlDocument mapName = new XmlDocument();
-        mapName.Load(Application.dataPath + "/XML/" + GameObject.FindObjectOfType<ShowMap>().map);
-        foreach (XmlNode node in mapName.DocumentElement.SelectSingleNode("/Root/Objects"))
-            {
-                //Check if the object has the correct name
-                if (node.Name == "Object") 
-                    if (node.Attributes.GetNamedItem("Name").Value == GameObject.FindObjectOfType<ShowMap>().sequence)
-                    {
-                        //Search for each node in the object 
-                        foreach (XmlNode content in node.FirstChild)
-                            if (content.Name == "Object") {
-                                layer+=1;
-                                if (content.Attributes["Name"] != null) {
-                                    Debug.Log("Found object with name " + content.Attributes.GetNamedItem("Name").Value + " and coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
-                                    ConvertXmlToObject(content.Attributes.GetNamedItem("Name").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
-                                }
-                                else {
-                                    Debug.Log("Found object with coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
-                                    foreach (XmlNode child in content.FirstChild)
-                                        {
-                                            if (child.Name == "Image")
-                                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
-                                            else if (child.Name == "Trigger")
-                                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
-                                            else if (child.Name == "Area")
-                                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
-                                            else if (child.Name == "Object")
-                                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
-                                            else if (child.Name == "Platform")
-                                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
-                                        }
-                                }
-                            }
-                            else if (content.Name == "Image") {
-                                layer+=1;
-                                Debug.Log("Found image with name " + content.Attributes.GetNamedItem("ClassName").Value + " and coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
-                                GameObject.FindObjectOfType<ShowMap>().actualObject = new GameObject(content.Attributes.GetNamedItem("ClassName").Value);
-                                GameObject.FindObjectOfType<ShowMap>().actualObject.name = content.Attributes.GetNamedItem("ClassName").Value;
-                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, content.Attributes.GetNamedItem("ClassName").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
-                                GameObject.FindObjectOfType<ShowMap>().actualObject = null;
-                            }
-                            else if (content.Name == "Trigger" || content.Name == "Area") {
-                                layer+=1;
-                                if (content.Name == "Trigger")
-                                    Debug.Log("Found trigger with name " + content.Attributes.GetNamedItem("Name").Value + " and coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
-                                else 
-                                    Debug.Log("Found area with name " + content.Attributes.GetNamedItem("Name").Value + " and coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
-                                GameObject.FindObjectOfType<ShowMap>().actualObject = new GameObject(content.Attributes.GetNamedItem("Name").Value);
-                                GameObject.FindObjectOfType<ShowMap>().actualObject.name = content.Attributes.GetNamedItem("Name").Value;
-                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, content.Attributes.GetNamedItem("Name").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
-                                GameObject.FindObjectOfType<ShowMap>().actualObject = null;
-                            }
-                    }
+        List<string> buildings = new List<string>();
+        List<string> objects = new List<string>();
 
-            }
+        Debug.Log("Rendering level " + GameObject.FindObjectOfType<ShowMap>().level_name);
+        GameObject.FindObjectOfType<ShowMap>().lv = new GameObject(GameObject.FindObjectOfType<ShowMap>().level_name);
+        GameObject.FindObjectOfType<ShowMap>().lv.name = GameObject.FindObjectOfType<ShowMap>().level_name;
+
+        XmlDocument level = new XmlDocument();
+        level.Load(Application.dataPath + "/XML/" + GameObject.FindObjectOfType<ShowMap>().level_name);
+        foreach (XmlNode node in level.DocumentElement.SelectSingleNode("/Root/Sets"))
+        {
+            buildings.Add(node.Attributes.GetNamedItem("FileName").Value);
+            XmlDocument building = new XmlDocument();
+            building.Load(Application.dataPath + "/XML/" + node.Attributes.GetNamedItem("FileName").Value);
+            foreach (XmlNode b_node in building.DocumentElement.SelectSingleNode("/Root/Sets"))
+                objects.Add(b_node.Attributes.GetNamedItem("FileName").Value);
+        }
+        foreach (XmlNode node in level.DocumentElement.SelectSingleNode("/Root/Track"))
+        {
+            if (node.Name == "Object")
+            if (node.HasChildNodes) 
+                if (node.FirstChild.FirstChild.Attributes["Name"] != null) 
+                    foreach (XmlNode content in node.FirstChild) 
+                {
+                    if (content.Name == "Object") {
+                        GameObject.FindObjectOfType<ShowMap>().layer+=1;
+                        bool foundInBuildings = false;
+                        foreach (string building_name in buildings) {
+                            XmlDocument building = new XmlDocument();
+                            building.Load(Application.dataPath + "/XML/" + building_name);
+                            foreach (XmlNode b_node in building.DocumentElement.SelectSingleNode("/Root/Objects"))
+                            {
+                                //Check if the object has the correct name
+                                if (b_node.Name == "Object")
+                                    if (b_node.Attributes["Name"] != null)
+                                        if (b_node.Attributes.GetNamedItem("Name").Value == content.Attributes.GetNamedItem("Name").Value) 
+                                        {
+                                            Debug.Log("Rendering part " + content.Attributes.GetNamedItem("Name").Value + " at X=" + content.Attributes.GetNamedItem("X").Value + " and Y=" + content.Attributes.GetNamedItem("Y").Value);
+                                            foundInBuildings = true;
+                                            RenderSequence(content.Attributes.GetNamedItem("Name").Value, building_name, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                                        }
+
+                            }
+                        }
+                        if (foundInBuildings == false)
+                        {
+                            GameObject.FindObjectOfType<ShowMap>().layer+=1;
+                            Debug.Log("Rendering object " + content.Attributes.GetNamedItem("Name").Value + " at X=" + content.Attributes.GetNamedItem("X").Value + " and Y=" + content.Attributes.GetNamedItem("Y").Value);
+                            ConvertXmlToObject(content.Attributes.GetNamedItem("Name").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                        }
+                    }
+                }
+                else
+                    foreach (XmlNode empty_object in node.FirstChild)
+                        foreach (XmlNode empty_object_content in empty_object.FirstChild)
+                        {
+                            if (empty_object_content.Name == "Object" && empty_object_content.Attributes["Name"] != null) {
+                                GameObject.FindObjectOfType<ShowMap>().layer+=1;
+                                bool foundInBuildings = false;
+                                foreach (string building_name in buildings) {
+                                    XmlDocument building = new XmlDocument();
+                                    building.Load(Application.dataPath + "/XML/" + building_name);
+                                    foreach (XmlNode b_node in building.DocumentElement.SelectSingleNode("/Root/Objects"))
+                                    {
+                                        //Check if the object has the correct name
+                                        if (b_node.Name == "Object")
+                                            if (b_node.Attributes["Name"] != null)
+                                                if (b_node.Attributes.GetNamedItem("Name").Value == empty_object_content.Attributes.GetNamedItem("Name").Value) 
+                                                {
+                                                    Debug.Log("Rendering part " + empty_object_content.Attributes.GetNamedItem("Name").Value + " at X=" + empty_object_content.Attributes.GetNamedItem("X").Value + " and Y=" + empty_object_content.Attributes.GetNamedItem("Y").Value);
+                                                    foundInBuildings = true;
+                                                    RenderSequence(empty_object_content.Attributes.GetNamedItem("Name").Value, building_name, empty_object_content.Attributes.GetNamedItem("X").Value, empty_object_content.Attributes.GetNamedItem("Y").Value);
+                                                }
+
+                                    }
+                                }
+                                if (foundInBuildings == false)
+                                {
+                                    GameObject.FindObjectOfType<ShowMap>().layer+=1;
+                                    Debug.Log("Rendering object " + empty_object_content.Attributes.GetNamedItem("Name").Value + " at X=" + empty_object_content.Attributes.GetNamedItem("X").Value + " and Y=" + empty_object_content.Attributes.GetNamedItem("Y").Value);
+                                    ConvertXmlToObject(empty_object_content.Attributes.GetNamedItem("Name").Value, empty_object_content.Attributes.GetNamedItem("X").Value, empty_object_content.Attributes.GetNamedItem("Y").Value);
+                                }
+                            }
+                        }
+        }
+    }
+    
+    static void RenderSequence(string seq_name, string building_name, string x, string y)
+    {
+        Debug.Log("Rendering...");
+        XmlDocument building = new XmlDocument();
+        building.Load(Application.dataPath + "/XML/" + building_name);
+        foreach (XmlNode node in building.DocumentElement.SelectSingleNode("/Root/Objects"))
+        {
+            //Check if the object has the correct name
+            if (node.Name == "Object") 
+                if (node.Attributes.GetNamedItem("Name").Value == seq_name)
+                {
+                    GameObject.FindObjectOfType<ShowMap>().part = new GameObject(seq_name);
+                    GameObject.FindObjectOfType<ShowMap>().part.name = seq_name;
+                    GameObject.FindObjectOfType<ShowMap>().part.transform.SetParent(GameObject.FindObjectOfType<ShowMap>().lv.transform);
+                    GameObject.FindObjectOfType<ShowMap>().part.transform.localPosition = new Vector3(float.Parse(x) / 100, -float.Parse(y) / 100, 0);
+                    //Search for each node in the object 
+                    foreach (XmlNode content in node.FirstChild)
+                        if (content.Name == "Object") {
+                            GameObject.FindObjectOfType<ShowMap>().layer+=1;
+                            if (content.Attributes["Name"] != null) {
+                                Debug.Log("Found object with name " + content.Attributes.GetNamedItem("Name").Value + " and coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
+                                ConvertXmlToObject(content.Attributes.GetNamedItem("Name").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                            }
+                            else {
+                                Debug.Log("Found object with coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
+                                foreach (XmlNode child in content.FirstChild)
+                                    {
+                                        if (child.Name == "Image")
+                                            GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                                        else if (child.Name == "Trigger")
+                                            GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                                        else if (child.Name == "Area")
+                                            GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                                        else if (child.Name == "Object")
+                                            GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                                        else if (child.Name == "Platform")
+                                            GameObject.FindObjectOfType<ShowMap>().InstantiateObject(child, "Unnamed-object", content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                                    }
+                            }
+                        }
+                        else if (content.Name == "Image") {
+                            GameObject.FindObjectOfType<ShowMap>().layer+=1;
+                            Debug.Log("Found image with name " + content.Attributes.GetNamedItem("ClassName").Value + " and coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
+                            GameObject.FindObjectOfType<ShowMap>().actualObject = new GameObject(content.Attributes.GetNamedItem("ClassName").Value);
+                            GameObject.FindObjectOfType<ShowMap>().actualObject.name = content.Attributes.GetNamedItem("ClassName").Value;
+                            GameObject.FindObjectOfType<ShowMap>().actualObject.transform.SetParent(GameObject.FindObjectOfType<ShowMap>().part.transform);
+                            GameObject.FindObjectOfType<ShowMap>().actualObject.transform.localPosition = new Vector3(0,0,0);
+                            GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, content.Attributes.GetNamedItem("ClassName").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                            GameObject.FindObjectOfType<ShowMap>().actualObject = null;
+                        }
+                        else if (content.Name == "Trigger" || content.Name == "Area") {
+                            GameObject.FindObjectOfType<ShowMap>().layer+=1;
+                            if (content.Name == "Trigger")
+                                Debug.Log("Found trigger with name " + content.Attributes.GetNamedItem("Name").Value + " and coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
+                            else 
+                                Debug.Log("Found area with name " + content.Attributes.GetNamedItem("Name").Value + " and coordinates " + content.Attributes.GetNamedItem("X").Value + " " + content.Attributes.GetNamedItem("Y").Value);
+                            GameObject.FindObjectOfType<ShowMap>().actualObject = new GameObject(content.Attributes.GetNamedItem("Name").Value);
+                            GameObject.FindObjectOfType<ShowMap>().actualObject.name = content.Attributes.GetNamedItem("Name").Value;
+                            GameObject.FindObjectOfType<ShowMap>().actualObject.transform.SetParent(GameObject.FindObjectOfType<ShowMap>().part.transform);
+                            GameObject.FindObjectOfType<ShowMap>().actualObject.transform.localPosition = new Vector3(0,0,0);
+                            GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, content.Attributes.GetNamedItem("Name").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
+                            GameObject.FindObjectOfType<ShowMap>().actualObject = null;
+                        }
+                }
+
+        }
+        GameObject.FindObjectOfType<ShowMap>().part = null;
     }
 
-    static void ConvertXmlToObject(string object_name, string x,  string y, int layer)
+    static void ConvertXmlToObject(string object_name, string x,  string y)
     {
         Debug.Log("Converting...");
 
@@ -106,15 +205,15 @@ public class ShowMap : MonoBehaviour
                         foreach (XmlNode content in node.FirstChild)
                         {
                             if (content.Name == "Image")
-                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y);
                             else if (content.Name == "Trigger")
-                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y);
                             else if (content.Name == "Area")
-                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y);
                             else if (content.Name == "Object")
-                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y);
                             else if (content.Name == "Platform")
-                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y, layer);
+                                GameObject.FindObjectOfType<ShowMap>().InstantiateObject(content, object_name, x, y);
                         }
                     }
             }
@@ -124,7 +223,7 @@ public class ShowMap : MonoBehaviour
         Debug.Log("Convert done !");
     }
 
-    void InstantiateObject(XmlNode content, string object_name, string x, string y, int layer)
+    void InstantiateObject(XmlNode content, string object_name, string x, string y)
     {
         //Debug all content found in the object
         if (content.Name == "Image")
@@ -141,14 +240,18 @@ public class ShowMap : MonoBehaviour
 
         //Place the image using every information the xml provide (X, Y, Width, Height, ClassName)
         if (content.Name == "Object" && !content.Attributes.GetNamedItem("Name").Value.Contains("Trigger"))
-            ConvertXmlToObject(content.Attributes.GetNamedItem("Name").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value, layer);
+            ConvertXmlToObject(content.Attributes.GetNamedItem("Name").Value, content.Attributes.GetNamedItem("X").Value, content.Attributes.GetNamedItem("Y").Value);
         else 
         {
             if (actualObject == null)
             {
                 //Create a new GameObject with the selected object
                 actualObject = new GameObject(object_name);
-                actualObject.transform.position = new Vector3(float.Parse(x) / 100, -float.Parse(y) / 100, 0);
+                if (part != null )
+                    actualObject.transform.SetParent(part.transform);
+                else
+                    actualObject.transform.SetParent(lv.transform);
+                actualObject.transform.localPosition = new Vector3(float.Parse(x) / 100, -float.Parse(y) / 100, 0);
                 actualObject.name = object_name; //Name it correctly
             }
 
@@ -166,7 +269,8 @@ public class ShowMap : MonoBehaviour
                     {
                         if (matrixNode.Name == "Matrix" && matrixNode.Attributes.GetNamedItem("A").Value != content.Attributes.GetNamedItem("Width").Value)
                         {
-                            lastContent.transform.rotation = Quaternion.Euler(0, float.Parse(content.Attributes.GetNamedItem("Width").Value) / float.Parse(matrixNode.Attributes.GetNamedItem("A").Value, CultureInfo.InvariantCulture) * 180f, 0);
+                            if (matrixNode.Attributes.GetNamedItem("A").Value != "")
+                            lastContent.transform.rotation = Quaternion.Euler(0, float.Parse(content.Attributes.GetNamedItem("Width").Value, CultureInfo.InvariantCulture) / float.Parse(matrixNode.Attributes.GetNamedItem("A").Value, CultureInfo.InvariantCulture) * 180f, 0);
                         }
                     }
             }
