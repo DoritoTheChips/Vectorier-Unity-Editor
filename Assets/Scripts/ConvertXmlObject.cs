@@ -16,30 +16,43 @@ public class ConvertXmlObject : MonoBehaviour
     {
         Debug.Log("Converting...");
 
-        //Open the object.xml 
-        XmlDocument xml = new XmlDocument();
-        xml.Load(Application.dataPath + "/XML/objects.xml");
+        //Load all object XMLs
+        XmlDocument obj = new XmlDocument();
+        obj.Load(Application.dataPath + "/XML/objects.xml");
+        bool objectFound = false;
+        int doc_num = 0;
 
-        //Search for the selected object in the object.xml
-        foreach (XmlNode node in xml.DocumentElement.SelectSingleNode("/Root/Objects"))
+        //Search for the selected object in the object XMLs
+        while (objectFound == false & doc_num < 3) 
         {
-            //Check if the object as the correct name
-            if (node.Name == "Object")
-                if (node.Attributes.GetNamedItem("Name").Value == GameObject.FindObjectOfType<ConvertXmlObject>().objectToConvert)
-                {
-                    //Search for each node in the object 
-                    foreach (XmlNode content in node.FirstChild)
+            if (doc_num == 0) 
+                obj.Load(Application.dataPath + "/XML/objects.xml");
+            else if (doc_num == 1) 
+                obj.Load(Application.dataPath + "/XML/objects_downtown.xml");
+            else if (doc_num == 2) 
+                obj.Load(Application.dataPath + "/XML/objects_construction.xml");
+            foreach (XmlNode node in obj.DocumentElement.SelectSingleNode("/Root/Objects"))
+            {
+                //Check if the object as the correct name
+                if (node.Name == "Object")
+                    if (node.Attributes.GetNamedItem("Name").Value == GameObject.FindObjectOfType<ConvertXmlObject>().objectToConvert)
                     {
-                        if (content.Name == "Image")
-                            GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
-                        else if (content.Name == "Trigger")
-                            GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
-                        else if (content.Name == "Area")
-                            GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
-                        else if (content.Name == "Object")
-                            GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                        objectFound = true;
+                        //Search for each node in the object 
+                        foreach (XmlNode content in node.FirstChild)
+                        {
+                            if (content.Name == "Image")
+                                GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                            else if (content.Name == "Trigger")
+                                GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                            else if (content.Name == "Area")
+                                GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                            else if (content.Name == "Object")
+                                GameObject.FindObjectOfType<ConvertXmlObject>().InstantiateObject(content);
+                        }
                     }
-                }
+            }
+            doc_num += 1;
         }
         GameObject.FindObjectOfType<ConvertXmlObject>().actualObject = null;
         Debug.Log("Convert done !");
