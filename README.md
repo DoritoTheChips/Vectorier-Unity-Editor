@@ -9,7 +9,7 @@ A Discord server is open for the project : https://discord.com/invite/pVRuFBVwC2
  * Level edition
 
 # Installation
- * Download Unity [2020.3.35f1](https://unity3d.com/get-unity/download?thank-you=update&download_nid=65637&os=Win) at the [official Unity Website](https://unity3d.com/get-unity/download/archive)
+ * Download Unity [2020.3.35f1](https://download.unity3d.com/download_unity/18e4db7a9996/Windows64EditorInstaller/UnitySetup64-2020.3.35f1.exe) at the [official Unity Website](https://unity3d.com/get-unity/download/archive)
  * Download the [Vectorier Unity Editor project](https://github.com/DoritoTheChips/Vectorier-Unity-Editor/archive/refs/heads/main.zip)
  * Extract the zip file
  * Open the project in Unity Hub
