@@ -19,30 +19,24 @@
   <Track>
     <Object Factor="0.05">
       <Content>
-        <Object Name="Background" X="-500" Y="-500"/>
-        <Object Name="Background" X="1620" Y="-500"/>
-        <Object Name="Background" X="3740" Y="-500"/>
+	    <Image X="-500" Y="-500" ClassName="v_bg" Width="2121" Height="1116"/>
+        <Image X="1620" Y="-500" ClassName="v_bg" Width="2121" Height="1116"/>
+        <Image X="3740" Y="-500" ClassName="v_bg" Width="2121" Height="1116"/>
       </Content>
     </Object>
     <Object Factor="0.5">
       <Content>
-        <Object Name="Building1" X="165" Y="-505"/>
-        <Object Name="Billboard" X="2190" Y="665"/>
-        <Object Name="Building2" X="2879" Y="35"/>
-        <Object Name="Building3" X="4149" Y="35"/>
-        <Object Name="Building1" X="6707" Y="-65"/>
-        <Object Name="Building3" X="9010" Y="-365"/>
-        <Object Name="Building1" X="10665" Y="325"/>
-        <Object Name="Building2" X="13630" Y="395"/>
-        <Object Name="Building1" X="15295" Y="-225"/>
+	    
       </Content>
     </Object>
     <Object Factor="1">
       <Content>
-	  <Spawn X="0" Y="0" Name="PlayerSpawn" Animation="JumpOff|18"/>
-	  
+	    
       </Content>
     </Object>
-    <Object Factor="2"/>
+    <Object Factor="1.001">
+	  <Content>
+	  </Content>
+	</Object>
   </Track>
 </Root>

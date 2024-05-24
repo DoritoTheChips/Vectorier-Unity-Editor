@@ -5,7 +5,15 @@ TagManager:
   serializedVersion: 2
   tags:
   - Object
-  - camera
+  - Image
+  - Platform
+  - Area
+  - Trigger
+  - Backdrop
+  - Camera
+  - Spawn
+  - Dynamic
+  - Top Image
   layers:
   - Default
   - TransparentFX
