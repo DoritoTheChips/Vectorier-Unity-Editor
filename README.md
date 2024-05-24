@@ -15,21 +15,20 @@ A Discord server is open for the project : https://discord.com/invite/pVRuFBVwC2
  * Open the project in Unity Hub
  
 # Usage
- * First, open the "editor" scene
+ * First, open any unity scene
  * In the hierarchy tab, click on the "ScriptManager" gameobject
  - **If you want to import objects in your level :**
-    * In the inspector, enter in the "Object To Conevrt" textbox you wish to convert (The list of object is located in *Assets* > *XML* > *objects.xml*)
+    * In the inspector, enter in the "Object To Convert" textbox you wish to convert (The list of object is located in *Assets* > *XML* > *objects.xml*)
     * Then go to *Vectorier* > *Convert from object.xml*
-    * **TIPS :** You can also get quick and usefull objects located at *Assets* > *Usefull-Objects*
+    * **NOTE :** Most of the Vector's necessary assets are already pre-configured, located in *Resources Folder*.
     
  - **If you want to import a map :**
     * (If you don't see a script called "Show Map" in the inspector, add the script located at *Assets* > *Scripts* > *ShowMap* on the "ScriptManager" gameobject)
-    * In the inspector, simply enter the name of the level you wish to import 
+    * In the inspector, simply enter the name of the level you wish to import
+       *EX.* CONSTRUCTION_BONUS_01
     * Then go to *Vectorier* > *Render object sequence*
     
  - **If you want to build a map :**
     * In the inspector, enter your file path in the "Vector File Path" textbox to the Vector directory (where the executable game is)
-    * Modify the preference to your liking
-        - *"Map To Override" is the map that will be replaced in the game*
-        - *"Spawn Hunter" is if you wish to have the hunter spawn in your level (usefull for testing your level)*
+    * Modify the preference to your likings.
     * Then go to *Vectorier* > *BuildMap*
