@@ -24,7 +24,10 @@ public class BuildMap : MonoBehaviour
     [Header("Level Settings")]
     [Tooltip("Level that will get overridden.")] public string mapToOverride = "DOWNTOWN_STORY_02";
     [Tooltip("Music that will be played on the level.")] public string levelMusic = "music_dinamic";
+    [Tooltip("Volume of the music.")] public string MusicVolume = "0.3";
     [Tooltip("Background Image")] public string customBackground = "v_bg";
+    [Tooltip("Background Width")] public string bg_Width = "2121";
+    [Tooltip("Background Height")] public string bg_Height = "1116";
 
     // Gameplay
     [Serializable]
@@ -109,6 +112,13 @@ public class BuildMap : MonoBehaviour
 
                 foreach (GameObject objectInScene in GameObject.FindGameObjectsWithTag("Object"))
                 {
+                    UnityEngine.Transform parent = objectInScene.transform.parent;
+                    if (parent != null && parent.CompareTag("Dynamic"))
+                    {
+                        // If the parent has the tag "Dynamic" skip this GameObject and continue.
+                        continue;
+                    }
+
                     GameObject.FindObjectOfType<BuildMap>().ConvertToObject(node, xml, objectInScene);
                 }
 
@@ -410,6 +420,8 @@ public class BuildMap : MonoBehaviour
                 foreach (XmlNode imageNode in imageNodes)
                 {
                     imageNode.Attributes["ClassName"].Value = customBackground;
+                    imageNode.Attributes["Width"].Value = bg_Width;
+                    imageNode.Attributes["Height"].Value = bg_Height;
                 }
             }
         }
@@ -420,9 +432,11 @@ public class BuildMap : MonoBehaviour
         {
             XmlNode musicNode = xml.DocumentElement.SelectSingleNode("/Root/Music");
             XmlAttribute musicAttribute = musicNode.Attributes["Name"];
+            XmlAttribute musicVolAttribute = musicNode.Attributes["Volume"];
             if (musicAttribute.Value != null)
             {
                 musicAttribute.Value = levelMusic;
+                musicVolAttribute.Value = MusicVolume;
             }
         }
         else UnityEngine.Debug.LogWarning("No music name specified.");
@@ -802,39 +816,20 @@ public class BuildMap : MonoBehaviour
 
                     // Create the content node and add it to the trigger node
                     XmlElement contentElement = xml.CreateElement("Content");
+
+                    //xml doesn't format correctly so we load them into a separate doc
+                    XmlDocument tempDoc = new XmlDocument();
+                    tempDoc.LoadXml("<Content>" + triggerSettings.Content + "</Content>");
+                    foreach (XmlNode childNode in tempDoc.DocumentElement.ChildNodes)
+                    {
+                        XmlNode importedNode = xml.ImportNode(childNode, true);
+                        contentElement.AppendChild(importedNode);
+                    }
+
                     T_element.AppendChild(contentElement);
 
-                    // Create the init node and add it to the content node
-                    XmlElement initElement = xml.CreateElement("Init");
-                    contentElement.AppendChild(initElement);
-
-                    if (!string.IsNullOrEmpty(triggerSettings.Init))
-                    {
-                        // split the Init string into lines and process each line
-                        string[] lines = triggerSettings.Init.Split('\n');
-                        foreach (string line in lines)
-                        {
-                            string trimmedLine = line.Trim();
-                            if (!string.IsNullOrEmpty(trimmedLine))
-                            {
-                                // extract the attribute values for name and value from the line
-                                string name = ExtractAttributeValue(trimmedLine, "Name");
-                                string value = ExtractAttributeValue(trimmedLine, "Value");
-
-                                // create and add the setVariable node under the init node
-                                XmlElement setVariableElement = xml.CreateElement("SetVariable");
-                                setVariableElement.SetAttribute("Name", name);
-                                setVariableElement.SetAttribute("Value", value);
-                                initElement?.AppendChild(setVariableElement);
-                            }
-                        }
-                    }
-                    // Create the template node and add it to the content node
-                    XmlElement templateElement = xml.CreateElement("Template");
-                    templateElement.SetAttribute("Name", triggerSettings.Template.ToString());
-                    contentElement.AppendChild(templateElement);
-
                     node.FirstChild.AppendChild(T_element); //Place it into the Object node
+
                 }
             }
             else //continues as normal without any setting attached
@@ -862,7 +857,19 @@ public class BuildMap : MonoBehaviour
                 }
             }
 
-            xml.Save(Application.dataPath + "/XML/dzip/level_xml/" + mapToOverride + ".xml"); //Apply the modification to the build-map.xml file}
+            //apply the modification to the build-map.xml with proper format
+            XmlWriterSettings settings = new XmlWriterSettings
+            {
+                Indent = true,
+                IndentChars = "  ",
+                NewLineChars = "\r\n",
+                NewLineHandling = NewLineHandling.Replace
+            };
+
+            using (XmlWriter writer = XmlWriter.Create(Application.dataPath + "/XML/dzip/level_xml/" + mapToOverride + ".xml", settings))
+            {
+                xml.Save(writer);
+            }
         }
     }
     //  ^^^ ExtractAttributeValue is for the method above ^^^
@@ -1003,34 +1010,173 @@ public class BuildMap : MonoBehaviour
         XmlElement moveElement = xml.CreateElement("Move");
 
         // MoveInterval element
-        XmlElement moveIntervalElement = xml.CreateElement("MoveInterval");
-        moveIntervalElement.SetAttribute("Number", "1");
-        moveIntervalElement.SetAttribute("FramesToMove", (dynamicComponent.MoveDuration * 60).ToString()); //multiply second by 60 frames per second
-        moveIntervalElement.SetAttribute("Delay", (dynamicComponent.Delay * 60).ToString()); //multiply second by 60 frames per second
 
-        // Create Points (Start, Support, Finish)
-        XmlElement startPointElement = xml.CreateElement("Point");
-        startPointElement.SetAttribute("Name", "Start");
-        startPointElement.SetAttribute("X", "0.0");
-        startPointElement.SetAttribute("Y", "0.0");
+        // Move Interval 1
+        if (dynamicComponent.MovementUsage.UseMovement1)
+        {
+            XmlElement moveIntervalElement = xml.CreateElement("MoveInterval");
+            moveIntervalElement.SetAttribute("Number", "1");
+            moveIntervalElement.SetAttribute("FramesToMove", (dynamicComponent.MoveInterval1.MoveDuration * 60).ToString()); //multiply second by 60 frames per second
+            moveIntervalElement.SetAttribute("Delay", (dynamicComponent.MoveInterval1.Delay * 60).ToString()); //multiply second by 60 frames per second
 
-        XmlElement supportPointElement = xml.CreateElement("Point");
-        supportPointElement.SetAttribute("Name", "Support");
-        supportPointElement.SetAttribute("Number", "1");
-        supportPointElement.SetAttribute("X", (dynamicComponent.SupportXAxis * 100).ToString());
-        supportPointElement.SetAttribute("Y", (-dynamicComponent.SupportYAxis * 100).ToString());
+            // Create Points (Start, Support, Finish)
+            XmlElement startPointElement = xml.CreateElement("Point");
+            startPointElement.SetAttribute("Name", "Start");
+            startPointElement.SetAttribute("X", "0.0");
+            startPointElement.SetAttribute("Y", "0.0");
 
-        XmlElement finishPointElement = xml.CreateElement("Point");
-        finishPointElement.SetAttribute("Name", "Finish");
-        finishPointElement.SetAttribute("X", (dynamicComponent.MoveXAxis * 100).ToString());
-        finishPointElement.SetAttribute("Y", (-dynamicComponent.MoveYAxis * 100).ToString());
+            XmlElement supportPointElement = xml.CreateElement("Point");
+            supportPointElement.SetAttribute("Name", "Support");
+            supportPointElement.SetAttribute("Number", "1");
+            supportPointElement.SetAttribute("X", (dynamicComponent.MoveInterval1.SupportXAxis * 100).ToString());
+            supportPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval1.SupportYAxis * 100).ToString());
 
-        // Append points to MoveInterval
-        moveIntervalElement.AppendChild(startPointElement);
-        moveIntervalElement.AppendChild(supportPointElement);
-        moveIntervalElement.AppendChild(finishPointElement);
+            XmlElement finishPointElement = xml.CreateElement("Point");
+            finishPointElement.SetAttribute("Name", "Finish");
+            finishPointElement.SetAttribute("X", (dynamicComponent.MoveInterval1.MoveXAxis * 100).ToString());
+            finishPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval1.MoveYAxis * 100).ToString());
 
-        moveElement.AppendChild(moveIntervalElement);
+            // Append points to MoveInterval
+            moveIntervalElement.AppendChild(startPointElement);
+            moveIntervalElement.AppendChild(supportPointElement);
+            moveIntervalElement.AppendChild(finishPointElement);
+
+            moveElement.AppendChild(moveIntervalElement);
+        }
+
+        // Move Interval 2
+        if (dynamicComponent.MovementUsage.UseMovement2)
+        {
+            XmlElement moveIntervalElement = xml.CreateElement("MoveInterval");
+            moveIntervalElement.SetAttribute("Number", "2");
+            moveIntervalElement.SetAttribute("FramesToMove", (dynamicComponent.MoveInterval2.MoveDuration * 60).ToString()); //multiply second by 60 frames per second
+            moveIntervalElement.SetAttribute("Delay", (dynamicComponent.MoveInterval2.Delay * 60).ToString()); //multiply second by 60 frames per second
+
+            // Create Points (Start, Support, Finish)
+            XmlElement startPointElement = xml.CreateElement("Point");
+            startPointElement.SetAttribute("Name", "Start");
+            startPointElement.SetAttribute("X", "0.0");
+            startPointElement.SetAttribute("Y", "0.0");
+
+            XmlElement supportPointElement = xml.CreateElement("Point");
+            supportPointElement.SetAttribute("Name", "Support");
+            supportPointElement.SetAttribute("Number", "2");
+            supportPointElement.SetAttribute("X", (dynamicComponent.MoveInterval2.SupportXAxis * 100).ToString());
+            supportPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval2.SupportYAxis * 100).ToString());
+
+            XmlElement finishPointElement = xml.CreateElement("Point");
+            finishPointElement.SetAttribute("Name", "Finish");
+            finishPointElement.SetAttribute("X", (dynamicComponent.MoveInterval2.MoveXAxis * 100).ToString());
+            finishPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval2.MoveYAxis * 100).ToString());
+
+            // Append points to MoveInterval
+            moveIntervalElement.AppendChild(startPointElement);
+            moveIntervalElement.AppendChild(supportPointElement);
+            moveIntervalElement.AppendChild(finishPointElement);
+
+            moveElement.AppendChild(moveIntervalElement);
+        }
+
+        // Move Interval 3
+        if (dynamicComponent.MovementUsage.UseMovement3)
+        {
+            XmlElement moveIntervalElement = xml.CreateElement("MoveInterval");
+            moveIntervalElement.SetAttribute("Number", "3");
+            moveIntervalElement.SetAttribute("FramesToMove", (dynamicComponent.MoveInterval3.MoveDuration * 60).ToString()); //multiply second by 60 frames per second
+            moveIntervalElement.SetAttribute("Delay", (dynamicComponent.MoveInterval3.Delay * 60).ToString()); //multiply second by 60 frames per second
+
+            // Create Points (Start, Support, Finish)
+            XmlElement startPointElement = xml.CreateElement("Point");
+            startPointElement.SetAttribute("Name", "Start");
+            startPointElement.SetAttribute("X", "0.0");
+            startPointElement.SetAttribute("Y", "0.0");
+
+            XmlElement supportPointElement = xml.CreateElement("Point");
+            supportPointElement.SetAttribute("Name", "Support");
+            supportPointElement.SetAttribute("Number", "2");
+            supportPointElement.SetAttribute("X", (dynamicComponent.MoveInterval3.SupportXAxis * 100).ToString());
+            supportPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval3.SupportYAxis * 100).ToString());
+
+            XmlElement finishPointElement = xml.CreateElement("Point");
+            finishPointElement.SetAttribute("Name", "Finish");
+            finishPointElement.SetAttribute("X", (dynamicComponent.MoveInterval3.MoveXAxis * 100).ToString());
+            finishPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval3.MoveYAxis * 100).ToString());
+
+            // Append points to MoveInterval
+            moveIntervalElement.AppendChild(startPointElement);
+            moveIntervalElement.AppendChild(supportPointElement);
+            moveIntervalElement.AppendChild(finishPointElement);
+
+            moveElement.AppendChild(moveIntervalElement);
+        }
+
+        // Move Interval 4
+        if (dynamicComponent.MovementUsage.UseMovement4)
+        {
+            XmlElement moveIntervalElement = xml.CreateElement("MoveInterval");
+            moveIntervalElement.SetAttribute("Number", "4");
+            moveIntervalElement.SetAttribute("FramesToMove", (dynamicComponent.MoveInterval4.MoveDuration * 60).ToString()); //multiply second by 60 frames per second
+            moveIntervalElement.SetAttribute("Delay", (dynamicComponent.MoveInterval4.Delay * 60).ToString()); //multiply second by 60 frames per second
+
+            // Create Points (Start, Support, Finish)
+            XmlElement startPointElement = xml.CreateElement("Point");
+            startPointElement.SetAttribute("Name", "Start");
+            startPointElement.SetAttribute("X", "0.0");
+            startPointElement.SetAttribute("Y", "0.0");
+
+            XmlElement supportPointElement = xml.CreateElement("Point");
+            supportPointElement.SetAttribute("Name", "Support");
+            supportPointElement.SetAttribute("Number", "2");
+            supportPointElement.SetAttribute("X", (dynamicComponent.MoveInterval4.SupportXAxis * 100).ToString());
+            supportPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval4.SupportYAxis * 100).ToString());
+
+            XmlElement finishPointElement = xml.CreateElement("Point");
+            finishPointElement.SetAttribute("Name", "Finish");
+            finishPointElement.SetAttribute("X", (dynamicComponent.MoveInterval4.MoveXAxis * 100).ToString());
+            finishPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval4.MoveYAxis * 100).ToString());
+
+            // Append points to MoveInterval
+            moveIntervalElement.AppendChild(startPointElement);
+            moveIntervalElement.AppendChild(supportPointElement);
+            moveIntervalElement.AppendChild(finishPointElement);
+
+            moveElement.AppendChild(moveIntervalElement);
+        }
+
+        // Move Interval 5
+        if (dynamicComponent.MovementUsage.UseMovement5)
+        {
+            XmlElement moveIntervalElement = xml.CreateElement("MoveInterval");
+            moveIntervalElement.SetAttribute("Number", "5");
+            moveIntervalElement.SetAttribute("FramesToMove", (dynamicComponent.MoveInterval5.MoveDuration * 60).ToString()); //multiply second by 60 frames per second
+            moveIntervalElement.SetAttribute("Delay", (dynamicComponent.MoveInterval5.Delay * 60).ToString()); //multiply second by 60 frames per second
+
+            // Create Points (Start, Support, Finish)
+            XmlElement startPointElement = xml.CreateElement("Point");
+            startPointElement.SetAttribute("Name", "Start");
+            startPointElement.SetAttribute("X", "0.0");
+            startPointElement.SetAttribute("Y", "0.0");
+
+            XmlElement supportPointElement = xml.CreateElement("Point");
+            supportPointElement.SetAttribute("Name", "Support");
+            supportPointElement.SetAttribute("Number", "2");
+            supportPointElement.SetAttribute("X", (dynamicComponent.MoveInterval5.SupportXAxis * 100).ToString());
+            supportPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval5.SupportYAxis * 100).ToString());
+
+            XmlElement finishPointElement = xml.CreateElement("Point");
+            finishPointElement.SetAttribute("Name", "Finish");
+            finishPointElement.SetAttribute("X", (dynamicComponent.MoveInterval5.MoveXAxis * 100).ToString());
+            finishPointElement.SetAttribute("Y", (-dynamicComponent.MoveInterval5.MoveYAxis * 100).ToString());
+
+            // Append points to MoveInterval
+            moveIntervalElement.AppendChild(startPointElement);
+            moveIntervalElement.AppendChild(supportPointElement);
+            moveIntervalElement.AppendChild(finishPointElement);
+
+            moveElement.AppendChild(moveIntervalElement);
+        }
+
+
         transformationElement.AppendChild(moveElement);
         dynamicElement.AppendChild(transformationElement);
         propertiesElement.AppendChild(dynamicElement);
@@ -1044,7 +1190,18 @@ public class BuildMap : MonoBehaviour
         {
             //check if the gameobject has specific tag
 
-            if (childObject.gameObject.CompareTag("Image"))
+            if (childObject.gameObject.CompareTag("Object"))
+            {
+                if (childObject.name != "Camera")
+                {
+                    XmlElement objElement = xml.CreateElement("Object"); //Create a new node from scratch
+                    objElement.SetAttribute("Name", Regex.Replace(childObject.name, @" \((.*?)\)", string.Empty)); //Add an name
+                    objElement.SetAttribute("X", (childObject.transform.position.x * 100).ToString().Replace(',', '.')); //Add X position (Refit into the Vector units)
+                    objElement.SetAttribute("Y", (-childObject.transform.position.y * 100).ToString().Replace(',', '.')); // Add Y position (Negative because Vector see the world upside down)
+                    contentElement.AppendChild(objElement);
+                }
+            }
+            else if (childObject.gameObject.CompareTag("Image"))
             {
                 XmlElement ielement = xml.CreateElement("Image"); //Create a new node from scratch
                 ielement.SetAttribute("X", (childObject.transform.position.x * 100).ToString().Replace(',', '.')); //Add X position (Refit into the Vector units)
@@ -1203,6 +1360,7 @@ public class BuildMap : MonoBehaviour
             else if (childObject.gameObject.CompareTag("Trigger"))
             {
                 DynamicTrigger dynamicTrigger = childObject.GetComponent<DynamicTrigger>();
+
                 if (dynamicTrigger != null)
                 {
                     XmlElement T_element = xml.CreateElement("Trigger");
@@ -1295,7 +1453,7 @@ public class BuildMap : MonoBehaviour
                         actionBlockSoundElement.SetAttribute("Template", "CommonLib.Sound");
                         actionsElement.AppendChild(actionBlockSoundElement);
                     }
-                    
+
                     // Append Actions to Loop
                     loopElement.AppendChild(actionsElement);
 
@@ -1309,6 +1467,91 @@ public class BuildMap : MonoBehaviour
                     contentElement.AppendChild(T_element);
 
                 }
+                else if (dynamicTrigger == null)
+                {
+                    if (childObject.name != "Camera")
+                    {
+                        if (childObject.GetComponent<TriggerSettings>() != null) //Checks if the trigger has a setting component
+                        {
+                            XmlElement T_element = xml.CreateElement("Trigger"); //Create a new node from scratch
+                            TriggerSettings triggerSettings = childObject.GetComponent<TriggerSettings>(); //Trigger Settings.cs
+                            T_element.SetAttribute("Name", Regex.Replace(childObject.name, @" \((.*?)\)", string.Empty)); //Add an name
+                            T_element.SetAttribute("X", (childObject.transform.position.x * 100).ToString().Replace(',', '.')); //Add X position (Refit into the Vector units)
+                            T_element.SetAttribute("Y", (-childObject.transform.position.y * 100).ToString().Replace(',', '.')); // Add Y position (Negative because Vector see the world upside down)
+
+                            SpriteRenderer spriteRenderer = childObject.GetComponent<SpriteRenderer>();
+                            if (spriteRenderer != null && spriteRenderer.sprite != null) //Get the Sprite Size in Width and Height
+                            {
+
+                                Bounds bounds = spriteRenderer.sprite.bounds;// Get the bounds of the sprite
+                                Vector3 scale = childObject.transform.localScale; // Get the GameObject scale
+
+                                // Retrieve the image resolution of the sprite
+                                float width = bounds.size.x * 100;
+                                float height = bounds.size.y * 100;
+
+                                // Set the width and height accordingly to the scale in the editor
+                                T_element.SetAttribute("Width", (width * scale.x).ToString()); //Width of the Image
+                                T_element.SetAttribute("Height", (height * scale.y).ToString()); //Height of the Image
+
+                                // Create the content node and add it to the trigger node
+                                XmlElement cElement = xml.CreateElement("Content");
+
+                                //xml doesn't format correctly so we load them into a separate doc
+                                XmlDocument tempDoc = new XmlDocument();
+                                tempDoc.LoadXml("<Content>" + triggerSettings.Content + "</Content>");
+                                foreach (XmlNode childNode in tempDoc.DocumentElement.ChildNodes)
+                                {
+                                    XmlNode importedNode = xml.ImportNode(childNode, true);
+                                    cElement.AppendChild(importedNode);
+                                }
+
+                                T_element.AppendChild(cElement);
+
+                            }
+                            contentElement.AppendChild(T_element);
+                        }
+                        else //continues as normal without any setting attached
+                        {
+                            XmlElement T_element = xml.CreateElement("Trigger"); //Create a new node from scratch
+                            T_element.SetAttribute("Name", Regex.Replace(childObject.name, @" \((.*?)\)", string.Empty)); //Add an name
+                            T_element.SetAttribute("X", (childObject.transform.position.x * 100).ToString().Replace(',', '.')); //Add X position (Refit into the Vector units)
+                            T_element.SetAttribute("Y", (-childObject.transform.position.y * 100).ToString().Replace(',', '.')); // Add Y position (Negative because Vector see the world upside down)
+
+                            SpriteRenderer spriteRenderer = childObject.GetComponent<SpriteRenderer>();
+                            if (spriteRenderer != null && spriteRenderer.sprite != null) //Get the Sprite Size in Width and Height
+                            {
+
+                                Bounds bounds = spriteRenderer.sprite.bounds;// Get the bounds of the sprite
+                                Vector3 scale = childObject.transform.localScale; // Get the GameObject scale
+
+                                // Retrieve the image resolution of the sprite
+                                float width = bounds.size.x * 100;
+                                float height = bounds.size.y * 100;
+
+                                // Set the width and height accordingly to the scale in the editor
+                                T_element.SetAttribute("Width", (width * scale.x).ToString()); //Width of the Image
+                                T_element.SetAttribute("Height", (height * scale.y).ToString()); //Height of the Image
+                            }
+                            contentElement.AppendChild(T_element);
+                        }
+                    }
+
+                    //apply the modification to the build-map.xml with proper format
+                    XmlWriterSettings settings = new XmlWriterSettings
+                    {
+                        Indent = true,
+                        IndentChars = "  ",
+                        NewLineChars = "\r\n",
+                        NewLineHandling = NewLineHandling.Replace
+                    };
+
+                    using (XmlWriter writer = XmlWriter.Create(Application.dataPath + "/XML/dzip/level_xml/" + mapToOverride + ".xml", settings))
+                    {
+                        xml.Save(writer);
+                    }
+                }
+                
             }
 
                 //add content to the object
@@ -1323,28 +1566,53 @@ public class BuildMap : MonoBehaviour
     void StartDzip()
     {
 
-        //Check if Vector.exe is running - if yes, close it
-        System.Diagnostics.Process[] p1 = System.Diagnostics.Process.GetProcesses();
-        foreach (System.Diagnostics.Process pro in p1)
+        // Check if Vector.exe is running - if yes, close it
+        Process[] processes = Process.GetProcessesByName("Vector");
+        foreach (Process process in processes)
         {
-            if (pro.ProcessName == "Vector")
+            if (!process.HasExited)
             {
-                UnityEngine.Debug.LogWarning("Vector.exe is still open !! Closing it... (be carful next time)");
-                pro.Kill();
+                UnityEngine.Debug.LogWarning("Vector.exe is still open !! Closing it... (be careful next time)");
+                process.Kill();
+                process.WaitForExit();
             }
         }
 
-        //Start compressing levels into level_xml.dz
-        Process process = Process.Start(Application.dataPath + "/XML/dzip/dzip.exe", Application.dataPath + "/XML/dzip/config-map.dcl");
-        process.WaitForExit();
-
-        //Move level_xml.dz if Vector path is found
-        if (File.Exists(vectorFilePath + "/level_xml.dz"))
+        // Start compressing levels into level_xml.dz
+        Process dzipProcess = Process.Start(Application.dataPath + "/XML/dzip/dzip.exe", Application.dataPath + "/XML/dzip/config-map.dcl");
+        if (dzipProcess != null)
         {
-            File.Delete(vectorFilePath + "/level_xml.dz");
-            File.Copy(Application.dataPath + "/XML/dzip/level_xml.dz", vectorFilePath + "/level_xml.dz");
+            dzipProcess.WaitForExit();
+
+            //check if the process has exited properly
+            if (dzipProcess.HasExited)
+            {
+                // Move level_xml.dz if Vector path is found
+                string sourceFilePath = Application.dataPath + "/XML/dzip/level_xml.dz";
+                string destinationFilePath = Path.Combine(vectorFilePath, "level_xml.dz");
+
+                if (File.Exists(sourceFilePath))
+                {
+                    if (File.Exists(destinationFilePath))
+                    {
+                        File.Delete(destinationFilePath);
+                    }
+                    File.Copy(sourceFilePath, destinationFilePath);
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError("level_xml.dz was not found !! Check if your Vector path is correct");
+                }
+            }
+            else
+            {
+                UnityEngine.Debug.LogError("dzip.exe did not exit properly.");
+            }
         }
-        else UnityEngine.Debug.LogError("Level_xml.dz was not found !! Check if your Vector path is correct");
+        else
+        {
+            UnityEngine.Debug.LogError("Failed to start dzip.exe");
+        }
     }
 
 }
