@@ -154,6 +154,17 @@ public class BuildMap : MonoBehaviour
                     }
                     GameObject.FindObjectOfType<BuildMap>().ConvertToArea(node, xml, areaInScene);
                 }
+
+                foreach (GameObject modelInScene in GameObject.FindGameObjectsWithTag("Model"))
+                {
+                    UnityEngine.Transform parent = modelInScene.transform.parent;
+                    if (parent != null && parent.CompareTag("Dynamic"))
+                    {
+                        // If the parent has the tag "Dynamic" skip this GameObject and continue.
+                        continue;
+                    }
+                    GameObject.FindObjectOfType<BuildMap>().ConvertToModel(node, xml, modelInScene);
+                }
                 foreach (GameObject camInScene in GameObject.FindGameObjectsWithTag("Camera"))
                 {
                     GameObject.FindObjectOfType<BuildMap>().ConvertToCamera(node, xml, camInScene); //Note: This is actually a trigger, but with camera zoom properties
@@ -690,6 +701,28 @@ public class BuildMap : MonoBehaviour
                 ielement.AppendChild(propertiesElement);
             }
             node.FirstChild.AppendChild(ielement); //Place it into the Object node
+            xml.Save(Application.dataPath + "/XML/dzip/level_xml/" + mapToOverride + ".xml"); //Apply the modification to the build-map.xml file}
+        }
+    }
+
+    void ConvertToModel(XmlNode node, XmlDocument xml, GameObject modelInScene)
+    {
+        if (modelInScene.name != "Camera")
+        {
+            ModelProperties modelProperties = modelInScene.GetComponent<ModelProperties>();
+
+            XmlElement Melement = xml.CreateElement("Model"); //Create a new node from scratch
+            Melement.SetAttribute("X", (modelInScene.transform.position.x * 100).ToString().Replace(',', '.')); //Add X position (Refit into the Vector units)
+            Melement.SetAttribute("Y", (-modelInScene.transform.position.y * 100).ToString().Replace(',', '.')); // Add Y position (Negative because Vector see the world upside down)
+            Melement.SetAttribute("Type", modelProperties.Type.ToString()); //Add an name
+            Melement.SetAttribute("ClassName", Regex.Replace(modelInScene.name, @" \((.*?)\)", string.Empty)); //Add an name
+
+            if (modelProperties.UseLifeTime)
+            {
+                Melement.SetAttribute("LifeTime", modelProperties.LifeTime); //Add an name
+            }
+
+            node.FirstChild.AppendChild(Melement); //Place it into the Object node
             xml.Save(Application.dataPath + "/XML/dzip/level_xml/" + mapToOverride + ".xml"); //Apply the modification to the build-map.xml file}
         }
     }
@@ -1553,9 +1586,29 @@ public class BuildMap : MonoBehaviour
                 }
                 
             }
+            else if (childObject.gameObject.CompareTag("Model"))
+            {
+                if (childObject.name != "Camera")
+                {
+                    ModelProperties modelProperties = childObject.GetComponent<ModelProperties>();
 
-                //add content to the object
-                objectElement.AppendChild(contentElement);
+                    XmlElement Modelelement = xml.CreateElement("Model"); //Create a new node from scratch
+                    Modelelement.SetAttribute("X", (childObject.transform.position.x * 100).ToString().Replace(',', '.')); //Add X position (Refit into the Vector units)
+                    Modelelement.SetAttribute("Y", (-childObject.transform.position.y * 100).ToString().Replace(',', '.')); // Add Y position (Negative because Vector see the world upside down)
+                    Modelelement.SetAttribute("Type", modelProperties.Type.ToString()); //Add an name
+                    Modelelement.SetAttribute("ClassName", Regex.Replace(childObject.name, @" \((.*?)\)", string.Empty)); //Add an name
+
+                    if (modelProperties.UseLifeTime)
+                    {
+                        Modelelement.SetAttribute("LifeTime", modelProperties.LifeTime); //Add an name
+                    }
+
+                    contentElement.AppendChild(Modelelement);
+                }
+            }
+
+            //add content to the object
+            objectElement.AppendChild(contentElement);
         }
 
         node.FirstChild.AppendChild(objectElement); //Place it into the Object node
