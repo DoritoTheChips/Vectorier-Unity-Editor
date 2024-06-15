@@ -25,11 +25,11 @@ public class ConvertXmlObject : MonoBehaviour
         //Search for the selected object in the object XMLs
         while (objectFound == false & doc_num < 3) 
         {
-            if (doc_num == 0) 
+            if (doc_num == 0)
                 obj.Load(Application.dataPath + "/XML/objects.xml");
-            else if (doc_num == 1) 
+            else if (doc_num == 1)
                 obj.Load(Application.dataPath + "/XML/objects_downtown.xml");
-            else if (doc_num == 2) 
+            else if (doc_num == 2)
                 obj.Load(Application.dataPath + "/XML/objects_construction.xml");
             foreach (XmlNode node in obj.DocumentElement.SelectSingleNode("/Root/Objects"))
             {
